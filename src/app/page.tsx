@@ -1,103 +1,342 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
+import { ArrowUpRight, ListChecks, PieChart as PieChartIcon, ChevronRight, Loader2, Plus } from "lucide-react";
+
+type Transaction = {
+  _id: string;
+  amount: number;
+  description: string;
+  date: string;
+  category: {
+    _id: string;
+    name: string;
+    color: string;
+  };
+};
+
+type CategoryBreakdown = {
+  id: string;
+  name: string;
+  color: string;
+  total: number;
+  budget: number;
+  percentage: number;
+};
+
+type DashboardData = {
+  recentTransactions: Transaction[];
+  totalExpense: number;
+  categoryBreakdown: CategoryBreakdown[];
+  monthlyData: {
+    name: string;
+    year: number;
+    month: number;
+    total: number;
+  }[];
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<string>("month");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/dashboard?period=${period}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch dashboard data");
+      }
+      const data = await response.json();
+      setDashboardData(data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+      setError("Failed to load dashboard data. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [period]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <p className="text-destructive">{error}</p>
+        <Button onClick={fetchDashboardData}>Try Again</Button>
+      </div>
+    );
+  }
+
+  const renderMonthlyChart = () => {
+    if (!dashboardData || dashboardData.monthlyData.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-[300px] border rounded-lg bg-muted/20">
+          <p className="text-muted-foreground">No data available</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      );
+    }
+
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <AreaChart
+          data={dashboardData.monthlyData}
+          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="name" />
+          <YAxis
+            tickFormatter={(value) => `$${value}`}
+            width={80}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          <Tooltip
+            formatter={(value) => formatCurrency(value as number)}
+            labelFormatter={(label) => `Month: ${label}`}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
+          <Area
+            type="monotone"
+            dataKey="total"
+            stroke="#6366F1"
+            fill="#6366F1"
+            fillOpacity={0.2}
           />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const renderCategoryPieChart = () => {
+    if (!dashboardData || dashboardData.categoryBreakdown.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-[300px] border rounded-lg bg-muted/20">
+          <p className="text-muted-foreground">No category data available</p>
+        </div>
+      );
+    }
+
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={dashboardData.categoryBreakdown}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={90}
+            paddingAngle={2}
+            dataKey="total"
+            nameKey="name"
+            label={({ name, percent }) => 
+              `${name}: ${(percent * 100).toFixed(1)}%`
+            }
+            labelLine={false}
+          >
+            {dashboardData.categoryBreakdown.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Legend />
+          <Tooltip formatter={(value) => formatCurrency(value as number)} />
+        </PieChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant={period === "week" ? "default" : "outline"}
+            onClick={() => setPeriod("week")}
+          >
+            Week
+          </Button>
+          <Button
+            size="sm"
+            variant={period === "month" ? "default" : "outline"}
+            onClick={() => setPeriod("month")}
+          >
+            Month
+          </Button>
+          <Button
+            size="sm"
+            variant={period === "quarter" ? "default" : "outline"}
+            onClick={() => setPeriod("quarter")}
+          >
+            Quarter
+          </Button>
+          <Button
+            size="sm"
+            variant={period === "year" ? "default" : "outline"}
+            onClick={() => setPeriod("year")}
+          >
+            Year
+          </Button>
+        </div>
+      </div>
+
+      {dashboardData && (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Expenses
+                </CardTitle>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(dashboardData.totalExpense)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  For the last {period}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Expenses</CardTitle>
+                <CardDescription>
+                  Your spending over the last 6 months
+                </CardDescription>
+              </CardHeader>
+              <CardContent>{renderMonthlyChart()}</CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Category Breakdown</CardTitle>
+                <CardDescription>
+                  Spending by category for the selected period
+                </CardDescription>
+              </CardHeader>
+              <CardContent>{renderCategoryPieChart()}</CardContent>
+              <CardFooter>
+                <Button variant="outline" asChild>
+                  <Link href="/categories">
+                    View all categories
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+
+          <div className="grid gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Recent Transactions</CardTitle>
+                  <CardDescription>
+                    Your latest financial activities
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/transactions">
+                    <ListChecks className="mr-1 h-4 w-4" />
+                    View All
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {dashboardData.recentTransactions.length > 0 ? (
+                  <div className="space-y-4">
+                    {dashboardData.recentTransactions.map((transaction) => (
+                      <div
+                        key={transaction._id}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="h-9 w-9 rounded-full flex items-center justify-center"
+                            style={{
+                              backgroundColor: `${transaction.category?.color}20`,
+                              color: transaction.category?.color,
+                            }}
+                          >
+                            <PieChartIcon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{transaction.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {transaction.category?.name || "Uncategorized"} · {" "}
+                              {format(new Date(transaction.date), "MMM dd, yyyy")}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="font-medium">
+                          {formatCurrency(transaction.amount)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground">No recent transactions</p>
+                    <Button className="mt-2" asChild>
+                      <Link href="/transactions/new">
+                        <Plus className="mr-1 h-4 w-4" />
+                        Add Transaction
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }
